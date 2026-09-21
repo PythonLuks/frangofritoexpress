@@ -437,7 +437,7 @@ const stars = '★★★★★';
                   <button type="button" data-cart-action="decrease" data-cart-name="${item.name}" aria-label="Diminuir ${item.name}">−</button>
                   <b>${item.quantity}</b>
                   <button type="button" data-cart-action="increase" data-cart-name="${item.name}" aria-label="Aumentar ${item.name}">+</button>
-                  <button class="cart-remove" type="button" data-cart-action="remove" data-cart-name="${item.name}">Remover</button>
+                  <button class="cart-remove" type="button" data-cart-action="remove" data-cart-name="${item.name}"><span class="cart-remove__icon" aria-hidden="true">×</span> Remover item</button>
                 </div>
               </div>
             </div>`).join('');
