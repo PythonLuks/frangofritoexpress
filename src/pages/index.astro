@@ -318,11 +318,39 @@ const stars = '★★★★★';
       <div class="cart-drawer__body">
         <div class="cart-empty" id="cart-empty"><span><Icon name="shopping-bag" size={28} /></span><h3>Seu pedido está vazio</h3><p>Escolha seus favoritos no cardápio e adicione aqui.</p><button class="button button--cart-empty" type="button" data-close-cart>Ver cardápio</button></div>
         <div class="cart-items" id="cart-items"></div>
+        <form class="delivery-form" id="delivery-form" hidden>
+          <div class="delivery-form__heading">
+            <div><p class="eyebrow eyebrow--brown">ÚLTIMA ETAPA</p><h3>Dados para <em>entrega</em></h3></div>
+            <button class="delivery-back" id="delivery-back" type="button">Voltar</button>
+          </div>
+          <p class="delivery-form__intro">Preencha seus dados para enviarmos o pedido certinho pelo WhatsApp.</p>
+          <div class="delivery-form__grid">
+            <label>Nome completo *<input name="customerName" type="text" autocomplete="name" placeholder="Como podemos te chamar?" required /></label>
+            <label>WhatsApp *<input name="customerPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(81) 99999-9999" required /></label>
+            <label class="delivery-form__wide">Rua ou avenida *<input name="street" type="text" autocomplete="street-address" placeholder="Ex.: Rua das Flores" required /></label>
+            <label>Número da casa *<input name="houseNumber" type="text" inputmode="numeric" placeholder="Ex.: 123" required /></label>
+            <label>Complemento <input name="complement" type="text" placeholder="Apto, bloco..." /></label>
+            <label>Bairro *<input name="neighborhood" type="text" autocomplete="address-level3" placeholder="Seu bairro" required /></label>
+            <label>Cidade/UF *<input name="cityState" type="text" autocomplete="address-level2" value="Recife - PE" required /></label>
+            <label class="delivery-form__wide">Ponto de referência <input name="reference" type="text" placeholder="Ex.: perto da praça" /></label>
+            <label>Forma de pagamento *
+              <select name="payment" required>
+                <option value="" selected disabled>Selecione</option>
+                <option>Pix</option>
+                <option>Dinheiro</option>
+                <option>Cartão na entrega</option>
+              </select>
+            </label>
+            <label>Troco para <input name="changeFor" type="text" inputmode="decimal" placeholder="Ex.: R$ 50,00" /></label>
+            <label class="delivery-form__wide">Observações do pedido <textarea name="notes" rows="2" placeholder="Alguma observação para a cozinha ou entrega?"></textarea></label>
+          </div>
+        </form>
       </div>
       <div class="cart-drawer__footer">
         <div class="cart-total"><span>Total do pedido</span><strong id="cart-total">R$ 0,00</strong></div>
-        <button class="button button--checkout" id="cart-checkout" type="button" disabled><img class="whatsapp-img" src="/images/whatsapp-icon-white.png" alt="" /> Finalizar pelo WhatsApp</button>
-        <small>Você confirma endereço e pagamento pelo WhatsApp.</small>
+        <button class="button button--checkout" id="cart-checkout" type="button" disabled>Continuar para entrega <Icon name="arrow-right" size={17} strokeWidth={2.3} /></button>
+        <button class="button button--checkout button--send-order" id="cart-send-order" type="submit" form="delivery-form" hidden><img class="whatsapp-img" src="/images/whatsapp-icon-white.png" alt="" /> Enviar pedido pelo WhatsApp</button>
+        <small id="cart-checkout-note">Você informa o endereço e pagamento antes de enviar.</small>
       </div>
     </aside>
 
@@ -366,8 +394,28 @@ const stars = '★★★★★';
       const cartCount = document.querySelector('#cart-count');
       const cartInlineCount = document.querySelector('#cart-inline-count');
       const checkoutButton = document.querySelector('#cart-checkout');
+      const sendOrderButton = document.querySelector('#cart-send-order');
+      const checkoutNote = document.querySelector('#cart-checkout-note');
+      const deliveryForm = document.querySelector('#delivery-form');
+      const deliveryBack = document.querySelector('#delivery-back');
       const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
       const totalQuantity = () => [...cart.values()].reduce((sum, item) => sum + item.quantity, 0);
+
+      const showCartSummary = () => {
+        if (deliveryForm) deliveryForm.hidden = true;
+        if (checkoutButton) checkoutButton.hidden = false;
+        if (sendOrderButton) sendOrderButton.hidden = true;
+        if (checkoutNote) checkoutNote.textContent = 'Você informa o endereço e pagamento antes de enviar.';
+      };
+
+      const showDeliveryForm = () => {
+        if (!cart.size) return;
+        if (deliveryForm) deliveryForm.hidden = false;
+        if (checkoutButton) checkoutButton.hidden = true;
+        if (sendOrderButton) sendOrderButton.hidden = false;
+        if (checkoutNote) checkoutNote.textContent = 'Confira os dados antes de enviar seu pedido.';
+        deliveryForm?.querySelector('input')?.focus();
+      };
 
       const renderCart = () => {
         const items = [...cart.values()];
@@ -376,6 +424,8 @@ const stars = '★★★★★';
         if (cartInlineCount) cartInlineCount.textContent = String(quantity);
         if (cartEmpty) cartEmpty.hidden = items.length > 0;
         if (checkoutButton) checkoutButton.disabled = items.length === 0;
+        if (sendOrderButton) sendOrderButton.disabled = items.length === 0;
+        if (!items.length) showCartSummary();
         if (cartItems) {
           cartItems.innerHTML = items.map((item) => `
             <div class="cart-line">
@@ -406,6 +456,8 @@ const stars = '★★★★★';
       };
       document.querySelectorAll('[data-open-cart]').forEach((button) => button.addEventListener('click', openCart));
       document.querySelectorAll('[data-close-cart]').forEach((button) => button.addEventListener('click', closeCart));
+      checkoutButton?.addEventListener('click', showDeliveryForm);
+      deliveryBack?.addEventListener('click', showCartSummary);
 
       document.querySelectorAll('[data-add-to-cart]').forEach((button) => button.addEventListener('click', () => {
         const card = button.closest('.menu-item');
@@ -437,11 +489,31 @@ const stars = '★★★★★';
         renderCart();
       });
 
-      checkoutButton?.addEventListener('click', () => {
-        if (!cart.size) return;
+      deliveryForm?.addEventListener('submit', (event) => {
+        event.preventDefault();
+        if (!cart.size || !deliveryForm.reportValidity()) return;
+        const formData = new FormData(deliveryForm);
         const lines = [...cart.values()].map((item) => `${item.quantity}x ${item.name} — ${formatCurrency(item.price * item.quantity)}`).join('\n');
         const total = [...cart.values()].reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const message = `Olá! Quero fazer este pedido:\n${lines}\n\nTotal: ${formatCurrency(total)}`;
+        const getValue = (name) => String(formData.get(name) || '').trim();
+        const message = [
+          'Olá! Quero fazer este pedido:',
+          lines,
+          '',
+          `Total: ${formatCurrency(total)}`,
+          '',
+          'DADOS PARA ENTREGA',
+          `Nome: ${getValue('customerName')}`,
+          `WhatsApp: ${getValue('customerPhone')}`,
+          `Endereço: ${getValue('street')}, nº ${getValue('houseNumber')}`,
+          `Complemento: ${getValue('complement') || 'Não informado'}`,
+          `Bairro: ${getValue('neighborhood')}`,
+          `Cidade/UF: ${getValue('cityState')}`,
+          `Referência: ${getValue('reference') || 'Não informado'}`,
+          `Pagamento: ${getValue('payment')}`,
+          `Troco para: ${getValue('changeFor') || 'Não se aplica'}`,
+          `Observações: ${getValue('notes') || 'Nenhuma'}`,
+        ].join('\n');
         window.open(`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
       });
 
