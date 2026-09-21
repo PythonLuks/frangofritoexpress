@@ -304,7 +304,12 @@ const stars = '★★★★★';
       <div class="container footer-bottom"><span>© 2024 Frango Frito Expresso. Todos os direitos reservados.</span><span>Feito com <b><Icon name="heart" size={12} strokeWidth={2.4} /> </b> no Brasil</span></div>
     </footer>
 
-    <button class="cart-fab" type="button" data-open-cart aria-label="Abrir meu pedido">
+    <div class="cart-toast" id="cart-toast" role="status" aria-live="polite" aria-atomic="true" hidden>
+      <span class="cart-toast__icon"><Icon name="shopping-bag" size={19} /></span>
+      <span class="cart-toast__copy"><strong>Adicionado à sacola</strong><small id="cart-toast-message">Item adicionado ao seu pedido.</small></span>
+      <Icon name="check" size={18} strokeWidth={2.4} />
+    </div>
+    <button class="cart-fab" id="cart-fab" type="button" data-open-cart aria-label="Abrir meu pedido">
       <Icon name="shopping-bag" size={22} />
       <span>Meu pedido</span>
       <b id="cart-count">0</b>
@@ -393,6 +398,9 @@ const stars = '★★★★★';
       const cartTotal = document.querySelector('#cart-total');
       const cartCount = document.querySelector('#cart-count');
       const cartInlineCount = document.querySelector('#cart-inline-count');
+      const cartFab = document.querySelector('#cart-fab');
+      const cartToast = document.querySelector('#cart-toast');
+      const cartToastMessage = document.querySelector('#cart-toast-message');
       const checkoutButton = document.querySelector('#cart-checkout');
       const sendOrderButton = document.querySelector('#cart-send-order');
       const checkoutNote = document.querySelector('#cart-checkout-note');
@@ -400,6 +408,43 @@ const stars = '★★★★★';
       const deliveryBack = document.querySelector('#delivery-back');
       const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
       const totalQuantity = () => [...cart.values()].reduce((sum, item) => sum + item.quantity, 0);
+      let cartToastTimer;
+      let cartToastHideTimer;
+      const addButtonTimers = new WeakMap();
+
+      const showCartFeedback = (name, button) => {
+        if (cartToastTimer) clearTimeout(cartToastTimer);
+        if (cartToastHideTimer) clearTimeout(cartToastHideTimer);
+        if (cartToastMessage) cartToastMessage.textContent = `${name} foi adicionado ao seu pedido.`;
+        if (cartToast) {
+          cartToast.hidden = false;
+          requestAnimationFrame(() => cartToast.classList.add('is-visible'));
+        }
+        if (cartFab) {
+          cartFab.classList.remove('cart-fab--pulse');
+          void cartFab.offsetWidth;
+          cartFab.classList.add('cart-fab--pulse');
+        }
+        if (button) {
+          if (!button.dataset.defaultContent) button.dataset.defaultContent = button.innerHTML;
+          if (addButtonTimers.has(button)) clearTimeout(addButtonTimers.get(button));
+          button.innerHTML = '<span>✓</span> Adicionado';
+          button.classList.add('is-added');
+          button.setAttribute('aria-label', `${name} adicionado à sua sacola`);
+          const timer = setTimeout(() => {
+            button.innerHTML = button.dataset.defaultContent || '<span>+</span> Adicionar';
+            button.classList.remove('is-added');
+            button.removeAttribute('aria-label');
+          }, 1400);
+          addButtonTimers.set(button, timer);
+        }
+        cartToastTimer = setTimeout(() => {
+          cartToast?.classList.remove('is-visible');
+          cartToastHideTimer = setTimeout(() => {
+            if (cartToast && !cartToast.classList.contains('is-visible')) cartToast.hidden = true;
+          }, 220);
+        }, 2400);
+      };
 
       const showCartSummary = () => {
         if (deliveryForm) deliveryForm.hidden = true;
@@ -471,6 +516,7 @@ const stars = '★★★★★';
           quantity: current ? current.quantity + 1 : 1,
         });
         renderCart();
+        showCartFeedback(name, button);
       }));
 
       cartItems?.addEventListener('click', (event) => {
